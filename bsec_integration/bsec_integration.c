@@ -299,7 +299,7 @@ static bsec_library_return_t bme68x_bsec_process_data(bsec_input_t *bsec_inputs,
                     humidity = bsec_outputs[index].signal;
                     break;
                 case BSEC_OUTPUT_GAS_PERCENTAGE:
-                    humidity = bsec_outputs[index].signal;
+                    gas_percentage = bsec_outputs[index].signal;
                     break;
                 default:
                     continue;

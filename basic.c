@@ -55,6 +55,7 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy, float stat
     }
 
     fprintf(log_fd, "{\"IAQ Accuracy\": \"%d\", \"IAQ\":\"%.2f\", \"Static IAQ\": \"%.2f\"", iaq_accuracy, iaq, static_iaq);
+    fprintf(log_fd, ", \"CO2 equivalent\": \"%.2f\", \"Breath VOC equivalent\": \"%.2f\"", co2_equivalent, breath_voc_equivalent);
     fprintf(log_fd, ", \"Raw Temperature\": \"%.2f\", \"Temperature\": \"%.2f\"", raw_temp, temp);
     fprintf(log_fd, ", \"Raw Humidity\": \"%.2f\", \"Humidity\": \"%.2f\",\"Pressure\": \"%.2f\"", raw_humidity, humidity, raw_pressure);
     fprintf(log_fd, ", \"Raw Gas\": \"%.0f\", \"Gas Percentage\":\"%.2f\"", raw_gas, gas_percentage);
@@ -64,6 +65,7 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy, float stat
     fprintf(log_fd, "\r\n");
     fflush(log_fd);
     fclose(log_fd);
+    // system("tail -n 1 iaq.log");
 }
 
 /*!
