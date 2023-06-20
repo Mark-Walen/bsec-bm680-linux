@@ -33,8 +33,8 @@ char *get_version(void)
  *
  * return          none
  */
-void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
-                  float raw_pressure, float raw_temp, float raw_humidity, float raw_gas,
+void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy, float static_iaq, float co2_equivalent, float breath_voc_equivalent,
+                  float raw_pressure, float raw_temp, float temp, float raw_humidity, float humidity, float raw_gas, float gas_percentage,
                   float stabilization_status, float run_in_status, bsec_library_return_t bsec_status)
 {
     int64_t timestamp_s = timestamp / 1000000000;
@@ -54,11 +54,12 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
         exit(EXIT_FAILURE);
     }
 
-    fprintf(log_fd, "{\"IAQ_Accuracy\": \"%d\",\"IAQ\":\"%.2f\"", iaq_accuracy, iaq);
-    fprintf(log_fd, ",\"Temperature\": \"%.2f\",\"Humidity\": \"%.2f\",\"Pressure\": \"%.2f\"", raw_temp, raw_humidity, raw_pressure / 100);
-    fprintf(log_fd, ",\"Gas\": \"%.0f\"", raw_gas);
-    fprintf(log_fd, ",\"Stabilization status\": %.0f,\"Run in status\": %.0f,\"Status\": \"%d\"", stabilization_status, run_in_status, bsec_status);
-    fprintf(log_fd, ",\"timestamp\": \"%" PRId64 "\"}", timestamp_s);
+    fprintf(log_fd, "{\"IAQ Accuracy\": \"%d\", \"IAQ\":\"%.2f\", \"Static IAQ\": \"%.2f\"", iaq_accuracy, iaq, static_iaq);
+    fprintf(log_fd, ", \"Raw Temperature\": \"%.2f\", \"Temperature\": \"%.2f\"", raw_temp, temp);
+    fprintf(log_fd, ", \"Raw Humidity\": \"%.2f\", \"Humidity\": \"%.2f\",\"Pressure\": \"%.2f\"", raw_humidity, humidity, raw_pressure);
+    fprintf(log_fd, ", \"Raw Gas\": \"%.0f\", \"Gas Percentage\":\"%.2f\"", raw_gas, gas_percentage);
+    fprintf(log_fd, ", \"Stabilization status\": %.0f,\"Run in status\": %.0f,\"Status\": \"%d\"", stabilization_status, run_in_status, bsec_status);
+    fprintf(log_fd, ", \"timestamp\": \"%" PRId64 "\"}", timestamp_s);
     // printf(",%" PRId64, timestamp_ms);
     fprintf(log_fd, "\r\n");
     fflush(log_fd);
@@ -186,6 +187,21 @@ int main(void)
     int fd = i2c_open("/dev/i2c-3");
     struct bme68x_dev bme_dev;
     uint8_t bme680_addr = BME68X_I2C_ADDR_LOW;
+    bsec_virtual_sensor_t sensor_list[13] = {
+        BSEC_OUTPUT_IAQ,
+        BSEC_OUTPUT_STATIC_IAQ,
+        BSEC_OUTPUT_CO2_EQUIVALENT,
+        BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,
+        BSEC_OUTPUT_RAW_TEMPERATURE,
+        BSEC_OUTPUT_RAW_PRESSURE,
+        BSEC_OUTPUT_RAW_HUMIDITY,
+        BSEC_OUTPUT_RAW_GAS,
+        BSEC_OUTPUT_STABILIZATION_STATUS,
+        BSEC_OUTPUT_RUN_IN_STATUS,
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
+        BSEC_OUTPUT_GAS_PERCENTAGE
+    };
 
     memset(&bme_dev, 0, sizeof(bme_dev));
     /* Interface preference is updated as a parameter
@@ -194,9 +210,10 @@ int main(void)
      */
     rslt = bme68x_interface_init(&bme_dev, BME68X_I2C_INTF, &bme680_addr, &fd);
     bme68x_check_rslt("bme68x_interface_init", rslt);
+
     /* Call to the function which initializes the BSEC library
      * Switch on low-power mode and provide no temperature offset */
-    ret = bsec_iot_init(BSEC_SAMPLE_RATE_LP, 0.0f, bme68x_delay_us, state_load, config_load, bme_dev);
+    ret = bsec_iot_init(sensor_list, 13, BSEC_SAMPLE_RATE_LP, 0.0f, state_load, config_load, bme_dev);
     if (ret.bme68x_status)
     {
         /* Could not intialize BME68x */

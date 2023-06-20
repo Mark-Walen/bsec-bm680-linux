@@ -104,8 +104,8 @@ typedef int64_t (*get_timestamp_us_fct)();
 typedef void (*output_ready_fct)(int64_t timestamp, float gas_estimate_1, float gas_estimate_2, float gas_estimate_3, float gas_estimate_4,
                     float raw_pressure, float raw_temp, float raw_humidity, float raw_gas, uint8_t raw_gas_index, bsec_library_return_t bsec_status);
 
-typedef void (*output_ready_fct_t)(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
-								   float raw_pressure, float raw_temp, float raw_humidity, float raw_gas,
+typedef void (*output_ready_fct_t)(int64_t timestamp, float iaq, uint8_t iaq_accuracy, float static_iaq, float co2_equivalent, float breath_voc_equivalent,
+								   float raw_pressure, float raw_temp, float temp, float raw_humidity, float humidity, float raw_gas, float gas_percentage,
 								   float stabilization_status, float run_in_status, bsec_library_return_t bsec_status);
 
 /* function pointer to the function loading a previous BSEC state from NVM */
@@ -141,9 +141,7 @@ typedef struct{
  * @return      zero if successful, negative otherwise
  */
 return_values_init
-bsec_iot_init(float sample_rate, float temperature_offset,
-			  sleep_fct sleep_n, state_load_fct state_load,
-			  config_load_fct config_load, struct bme68x_dev dev);
+bsec_iot_init(bsec_virtual_sensor_t sensor_list[], uint8_t n_sensors, float sample_rate, float temperature_offset, state_load_fct state_load, config_load_fct config_load,  struct bme68x_dev dev);
 
 /*!
  * @brief       Runs the main (endless) loop that queries sensor settings, applies them, and processes the measured data
