@@ -5,6 +5,7 @@
 
 char *filename_state = "./bme680_iaq_33v_3s_4d/bsec_iaq.state";
 char *filename_config = "./bme680_iaq_33v_3s_4d/bsec_iaq.config";
+char *log_file = "iaq.log";
 
 char *get_version(void)
 {
@@ -14,40 +15,6 @@ char *get_version(void)
     snprintf(buffer, 16, "%d.%d.%d.%d", bsec_version.major, bsec_version.minor,
              bsec_version.major_bugfix, bsec_version.minor_bugfix);
     return buffer;
-}
-
-/*!
- * @brief           Handling of the ready outputs
- *
- * @param[in]       timestamp               time in milliseconds
- * @param[in]       gas_estimate_1          gas estimate 1
- * @param[in]       gas_estimate_2          gas estimate 2
- * @param[in]       gas_estimate_3          gas estimate 3
- * @param[in]       gas_estimate_4          gas estimate 4 
- * @param[in]       raw_pressure            raw pressure
- * @param[in]       raw_temp                raw temperature
- * @param[in]       raw_humidity            raw humidity
- * @param[in]       raw_gas                 raw gas
- * @param[in]       raw_gas_index           raw gas index
- * @param[in]       bsec_status             value returned by the bsec_do_steps() call
- *
- * @return          none
- */
-void output_ready(int64_t timestamp, float gas_estimate_1, float gas_estimate_2, float gas_estimate_3, float gas_estimate_4,
-                    float raw_pressure, float raw_temp, float raw_humidity, float raw_gas, uint8_t raw_gas_index, bsec_library_return_t bsec_status)
-{
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-
-    printf("{\"Gas_estimate_1\": \"%.2f\",\"Gas_estimate_2\":\"%.2f\"", gas_estimate_1, gas_estimate_2);
-    printf(",\"Gas_estimate_3\": \"%.2f\",\"Gas_estimate_4\":\"%.2f\"", gas_estimate_3, gas_estimate_4);
-    printf(",\"Temperature\": \"%.2f\",\"Humidity\": \"%.2f\",\"Pressure\": \"%.2f\"", raw_temp, raw_humidity, raw_pressure / 100);
-    printf(",\"Gas\": \"%.0f\"", raw_gas);
-    printf(",\"Status\": \"%d\"}", bsec_status);
-    // printf(",%" PRId64, timestamp);
-    // printf(",%" PRId64, timestamp_ms);
-    printf("\r\n");
-    fflush(stdout);
 }
 
 /*
@@ -66,31 +33,37 @@ void output_ready(int64_t timestamp, float gas_estimate_1, float gas_estimate_2,
  *
  * return          none
  */
-// void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
-//                   float temperature, float humidity, float pressure,
-//                   float raw_temperature, float raw_humidity, float gas,
-//                   bsec_library_return_t bsec_status)
-// {
-//   //int64_t timestamp_s = timestamp / 1000000000;
-//   ////int64_t timestamp_ms = timestamp / 1000;
+void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
+                  float raw_pressure, float raw_temp, float raw_humidity, float raw_gas,
+                  float stabilization_status, float run_in_status, bsec_library_return_t bsec_status)
+{
+    int64_t timestamp_s = timestamp / 1000000000;
+    //int64_t timestamp_ms = timestamp / 100000;
 
-//   //time_t t = timestamp_s;
-//   /*
-//    * timestamp for localtime only makes sense if get_timestamp_us() uses
-//    * CLOCK_REALTIME
-//    */
-//   time_t t = time(NULL);
-//   struct tm tm = *localtime(&t);
+    // time_t t = timestamp_s;
+    /*
+     * timestamp for localtime only makes sense if get_timestamp_us() uses
+     * CLOCK_REALTIME
+     */
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    FILE *log_fd = fopen(log_file, "a");
+    if (log_fd == NULL)
+    {
+        printf("Unable to open file: %s\n", log_file);
+        exit(EXIT_FAILURE);
+    }
 
-//   printf("{\"IAQ_Accuracy\": \"%d\",\"IAQ\":\"%.2f\"", iaq_accuracy, iaq);
-//   printf(",\"Temperature\": \"%.2f\",\"Humidity\": \"%.2f\",\"Pressure\": \"%.2f\"", temperature, humidity,pressure / 100);
-//   printf(",\"Gas\": \"%.0f\"", gas);
-//   printf(",\"Status\": \"%d\"}", bsec_status);
-//   //printf(",%" PRId64, timestamp);
-//   //printf(",%" PRId64, timestamp_ms);
-//   printf("\r\n");
-//   fflush(stdout);
-// }
+    fprintf(log_fd, "{\"IAQ_Accuracy\": \"%d\",\"IAQ\":\"%.2f\"", iaq_accuracy, iaq);
+    fprintf(log_fd, ",\"Temperature\": \"%.2f\",\"Humidity\": \"%.2f\",\"Pressure\": \"%.2f\"", raw_temp, raw_humidity, raw_pressure / 100);
+    fprintf(log_fd, ",\"Gas\": \"%.0f\"", raw_gas);
+    fprintf(log_fd, ",\"Stabilization status\": %.0f,\"Run in status\": %.0f,\"Status\": \"%d\"", stabilization_status, run_in_status, bsec_status);
+    fprintf(log_fd, ",\"timestamp\": \"%" PRId64 "\"}", timestamp_s);
+    // printf(",%" PRId64, timestamp_ms);
+    fprintf(log_fd, "\r\n");
+    fflush(log_fd);
+    fclose(log_fd);
+}
 
 /*!
  * @brief Load binary file from non-volatile memory into buffer. Utility function
@@ -223,7 +196,7 @@ int main(void)
     bme68x_check_rslt("bme68x_interface_init", rslt);
     /* Call to the function which initializes the BSEC library
      * Switch on low-power mode and provide no temperature offset */
-    ret = bsec_iot_init(BSEC_SAMPLE_RATE_SCAN, 0.0f, bme68x_delay_us, state_load, config_load, bme_dev);
+    ret = bsec_iot_init(BSEC_SAMPLE_RATE_LP, 0.0f, bme68x_delay_us, state_load, config_load, bme_dev);
     if (ret.bme68x_status)
     {
         /* Could not intialize BME68x */
@@ -233,7 +206,7 @@ int main(void)
     else if (ret.bsec_status)
     {
         /* Could not intialize BSEC library */
-        printf("Could not intialize BSEC library!\n");
+        printf("Could not intialize BSEC library!%d\n", ret.bsec_status);
         return (int)ret.bsec_status;
     }
     /* Call to endless loop function which reads and processes data based on sensor settings */

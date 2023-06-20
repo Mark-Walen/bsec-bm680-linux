@@ -85,7 +85,7 @@
 /* local macro definitions */
 /**********************************************************************************************************************/
 
-#define NUM_USED_OUTPUTS 9
+#define NUM_USED_OUTPUTS 7
 
 /**********************************************************************************************************************/
 /* global variable declarations */
@@ -127,24 +127,20 @@ static bsec_library_return_t bme68x_bsec_update_subscription(float sample_rate)
     bsec_library_return_t status = BSEC_OK;
     
     /* note: Virtual sensors as desired to be added here */
-    requested_virtual_sensors[0].sensor_id = BSEC_OUTPUT_GAS_ESTIMATE_1;
+    requested_virtual_sensors[0].sensor_id = BSEC_OUTPUT_IAQ;
     requested_virtual_sensors[0].sample_rate = sample_rate;
-    requested_virtual_sensors[1].sensor_id = BSEC_OUTPUT_GAS_ESTIMATE_2;
+    requested_virtual_sensors[1].sensor_id = BSEC_OUTPUT_RAW_PRESSURE;
     requested_virtual_sensors[1].sample_rate = sample_rate;
-    requested_virtual_sensors[2].sensor_id = BSEC_OUTPUT_GAS_ESTIMATE_3;
+    requested_virtual_sensors[2].sensor_id = BSEC_OUTPUT_RAW_TEMPERATURE;
     requested_virtual_sensors[2].sample_rate = sample_rate;
-    requested_virtual_sensors[3].sensor_id = BSEC_OUTPUT_GAS_ESTIMATE_4;
+    requested_virtual_sensors[3].sensor_id = BSEC_OUTPUT_RAW_HUMIDITY;
     requested_virtual_sensors[3].sample_rate = sample_rate;
-    requested_virtual_sensors[4].sensor_id = BSEC_OUTPUT_RAW_PRESSURE;
+    requested_virtual_sensors[4].sensor_id = BSEC_OUTPUT_RAW_GAS;
     requested_virtual_sensors[4].sample_rate = sample_rate;
-    requested_virtual_sensors[5].sensor_id = BSEC_OUTPUT_RAW_TEMPERATURE;
+    requested_virtual_sensors[5].sensor_id = BSEC_OUTPUT_STABILIZATION_STATUS;
     requested_virtual_sensors[5].sample_rate = sample_rate;
-    requested_virtual_sensors[6].sensor_id = BSEC_OUTPUT_RAW_HUMIDITY;
+    requested_virtual_sensors[6].sensor_id = BSEC_OUTPUT_RUN_IN_STATUS;
     requested_virtual_sensors[6].sample_rate = sample_rate;
-    requested_virtual_sensors[7].sensor_id = BSEC_OUTPUT_RAW_GAS;
-    requested_virtual_sensors[7].sample_rate = sample_rate;
-    requested_virtual_sensors[8].sensor_id = BSEC_OUTPUT_RAW_GAS_INDEX;
-    requested_virtual_sensors[8].sample_rate = sample_rate;
     
     /* Call bsec_update_subscription() to enable/disable the requested virtual sensors */
     status = bsec_update_subscription(requested_virtual_sensors, n_requested_virtual_sensors, required_sensor_settings,
@@ -202,7 +198,7 @@ return_values_init bsec_iot_init(float sample_rate, float temperature_offset, sl
             return ret;
         }
     }
-    
+    // printf("%s:%d\n", __FUNCTION__, __LINE__);
     /* Load previous library state, if available */
     bsec_state_len = state_load(bsec_state, sizeof(bsec_state));
     if (bsec_state_len != 0)
@@ -213,7 +209,7 @@ return_values_init bsec_iot_init(float sample_rate, float temperature_offset, sl
             return ret;
         }
     }
-    
+    // printf("%s:%d\n", __FUNCTION__, __LINE__);
     /* Call to the function which sets the library with subscription information */
     ret.bsec_status = bme68x_bsec_update_subscription(sample_rate);
     if (ret.bsec_status != BSEC_OK)
@@ -233,7 +229,7 @@ return_values_init bsec_iot_init(float sample_rate, float temperature_offset, sl
  *
  * @return      library function return codes, zero when successful 
  */
-static bsec_library_return_t bme68x_bsec_process_data(bsec_input_t *bsec_inputs, uint8_t num_bsec_inputs, output_ready_fct output_ready)
+static bsec_library_return_t bme68x_bsec_process_data(bsec_input_t *bsec_inputs, uint8_t num_bsec_inputs, output_ready_fct_t output_ready)
 {
     /* Output buffer set to the maximum virtual sensor outputs supported */
     bsec_output_t bsec_outputs[BSEC_NUMBER_OUTPUTS];
@@ -241,17 +237,15 @@ static bsec_library_return_t bme68x_bsec_process_data(bsec_input_t *bsec_inputs,
     uint8_t index = 0;
 
     bsec_library_return_t bsec_status = BSEC_OK;
-    
     int64_t timestamp = 0;
-    float gas_estimate_1 = 0.0f;
-    float gas_estimate_2 = 0.0f;
-    float gas_estimate_3 = 0.0f;
-    float gas_estimate_4 = 0.0f;
+    float iaq = 0.0f;
+    uint8_t iaq_accuracy = 0;
 	float raw_pressure = 0.0f;
 	float raw_temp = 0.0f;
 	float raw_humidity = 0.0f;
 	float raw_gas = 0.0f;
-	uint8_t raw_gas_index = 0;
+	float stabilization_status = 0.0f;
+    float run_in_status = 0.0f;
     
     /* Check if something should be processed by BSEC */
     if (num_bsec_inputs > 0)
@@ -272,17 +266,9 @@ static bsec_library_return_t bme68x_bsec_process_data(bsec_input_t *bsec_inputs,
         {
             switch (bsec_outputs[index].sensor_id)
             {
-                case BSEC_OUTPUT_GAS_ESTIMATE_1:
-                    gas_estimate_1 = bsec_outputs[index].signal;
-                    break;
-                case BSEC_OUTPUT_GAS_ESTIMATE_2:
-                    gas_estimate_2 = bsec_outputs[index].signal;
-                    break;
-                case BSEC_OUTPUT_GAS_ESTIMATE_3:
-                    gas_estimate_3 = bsec_outputs[index].signal;
-                    break;
-                case BSEC_OUTPUT_GAS_ESTIMATE_4:
-                    gas_estimate_4 = bsec_outputs[index].signal;
+                case BSEC_OUTPUT_IAQ:
+                    iaq = bsec_outputs[index].signal;
+                    iaq_accuracy = bsec_outputs[index].accuracy;
                     break;
                 case BSEC_OUTPUT_RAW_PRESSURE:
                     raw_pressure = bsec_outputs[index].signal;
@@ -296,9 +282,11 @@ static bsec_library_return_t bme68x_bsec_process_data(bsec_input_t *bsec_inputs,
                 case BSEC_OUTPUT_RAW_GAS:
                     raw_gas = bsec_outputs[index].signal;
                     break;
-                case BSEC_OUTPUT_RAW_GAS_INDEX:
-                    raw_gas_index = (uint8_t)bsec_outputs[index].signal;
+                case BSEC_OUTPUT_STABILIZATION_STATUS:
+                    stabilization_status = bsec_outputs[index].signal;
                     break;
+                case BSEC_OUTPUT_RUN_IN_STATUS:
+                    run_in_status = bsec_outputs[index].signal;
                 default:
                     continue;
             }
@@ -308,7 +296,7 @@ static bsec_library_return_t bme68x_bsec_process_data(bsec_input_t *bsec_inputs,
         }
         
         /* Pass the extracted outputs to the user provided output_ready() function. */
-        output_ready(timestamp, gas_estimate_1, gas_estimate_2, gas_estimate_3, gas_estimate_4, raw_pressure, raw_temp, raw_humidity, raw_gas, raw_gas_index, bsec_status);
+        output_ready(timestamp, iaq, iaq_accuracy, raw_pressure, raw_temp, raw_humidity, raw_gas, stabilization_status, run_in_status, bsec_status);
     }
 	return bsec_status;
 }
@@ -323,7 +311,7 @@ static bsec_library_return_t bme68x_bsec_process_data(bsec_input_t *bsec_inputs,
  *
  * @return      function result, one when successful & zero when unsuccessful
  */
-uint8_t processData(int64_t currTimeNs, struct bme68x_data data, int32_t bsec_process_data, output_ready_fct output_ready)
+uint8_t processData(int64_t currTimeNs, struct bme68x_data data, int32_t bsec_process_data, output_ready_fct_t output_ready)
 {
     bsec_input_t inputs[BSEC_MAX_PHYSICAL_SENSOR]; /* Temp, Pres, Hum & Gas */
 	bsec_library_return_t bsec_status = BSEC_OK;
@@ -541,7 +529,7 @@ uint8_t getData(struct bme68x_data *data)
  *
  * @return      none
  */
-void bsec_iot_loop(sleep_fct sleep, get_timestamp_us_fct get_timestamp_us, output_ready_fct output_ready,
+void bsec_iot_loop(sleep_fct sleep, get_timestamp_us_fct get_timestamp_us, output_ready_fct_t output_ready,
                     state_save_fct state_save, uint32_t save_intvl)
 {
     /* Timestamp variables */

@@ -104,6 +104,10 @@ typedef int64_t (*get_timestamp_us_fct)();
 typedef void (*output_ready_fct)(int64_t timestamp, float gas_estimate_1, float gas_estimate_2, float gas_estimate_3, float gas_estimate_4,
                     float raw_pressure, float raw_temp, float raw_humidity, float raw_gas, uint8_t raw_gas_index, bsec_library_return_t bsec_status);
 
+typedef void (*output_ready_fct_t)(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
+								   float raw_pressure, float raw_temp, float raw_humidity, float raw_gas,
+								   float stabilization_status, float run_in_status, bsec_library_return_t bsec_status);
+
 /* function pointer to the function loading a previous BSEC state from NVM */
 typedef uint32_t (*state_load_fct)(uint8_t *state_buffer, uint32_t n_buffer);
 
@@ -152,7 +156,7 @@ bsec_iot_init(float sample_rate, float temperature_offset,
  *
  * @return      return_values_init	struct with the result of the API and the BSEC library
  */ 
-void bsec_iot_loop(sleep_fct sleep_n, get_timestamp_us_fct get_timestamp_us, output_ready_fct output_ready,
+void bsec_iot_loop(sleep_fct sleep_n, get_timestamp_us_fct get_timestamp_us, output_ready_fct_t output_ready,
     state_save_fct state_save, uint32_t save_intvl);
 
 #ifdef __cplusplus
