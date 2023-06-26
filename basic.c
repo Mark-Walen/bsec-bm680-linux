@@ -181,7 +181,7 @@ uint32_t config_load(uint8_t *config_buffer, uint32_t n_buffer)
     return rslt;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
     printf("bsec lib ver%s\n", get_version());
     int8_t rslt;
