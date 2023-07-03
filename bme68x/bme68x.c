@@ -151,7 +151,7 @@ int8_t bme68x_init(struct bme68x_dev *dev)
         rslt = bme68x_get_regs(BME68X_REG_CHIP_ID, &dev->chip_id, 1, dev);
         if (rslt == BME68X_OK)
         {
-            // fprintf(stdout, "chip id: 0x%2x\n", dev->chip_id);
+            printf("[%s:%d] chip id: 0x%2x\r\n", __FUNCTION__, __LINE__, dev->chip_id);
             if (dev->chip_id == BME68X_CHIP_ID)
             {
                 /* Read Variant ID */
@@ -291,7 +291,7 @@ int8_t bme68x_soft_reset(struct bme68x_dev *dev)
             rslt = bme68x_set_regs(&reg_addr, &soft_rst_cmd, 1, dev);
 
             /* Wait for 5ms */
-            dev->delay_us(BME68X_PERIOD_RESET, dev->intf_ptr);
+            dev->delay_ms(BME68X_PERIOD_RESET, dev->intf_ptr);
             if (rslt == BME68X_OK)
             {
                 /* After reset get the memory page */
@@ -447,7 +447,7 @@ int8_t bme68x_set_op_mode(const uint8_t op_mode, struct bme68x_dev *dev)
             {
                 tmp_pow_mode &= ~BME68X_MODE_MSK; /* Set to sleep */
                 rslt = bme68x_set_regs(&reg_addr, &tmp_pow_mode, 1, dev);
-                dev->delay_us(BME68X_PERIOD_POLL, dev->intf_ptr);
+                dev->delay_ms(BME68X_PERIOD_POLL, dev->intf_ptr);
             }
         }
     } while ((pow_mode != BME68X_SLEEP_MODE) && (rslt == BME68X_OK));
@@ -738,7 +738,7 @@ int8_t bme68x_selftest_check(const struct bme68x_dev *dev)
     t_dev.read = dev->read;
     t_dev.write = dev->write;
     t_dev.intf = dev->intf;
-    t_dev.delay_us = dev->delay_us;
+    t_dev.delay_ms = dev->delay_ms;
     t_dev.intf_ptr = dev->intf_ptr;
     rslt = bme68x_init(&t_dev);
     if (rslt == BME68X_OK)
@@ -762,7 +762,7 @@ int8_t bme68x_selftest_check(const struct bme68x_dev *dev)
                 if (rslt == BME68X_OK)
                 {
                     /* Wait for the measurement to complete */
-                    t_dev.delay_us(BME68X_HEATR_DUR1_DELAY, t_dev.intf_ptr);
+                    t_dev.delay_ms(BME68X_HEATR_DUR1_DELAY, t_dev.intf_ptr);
                     rslt = bme68x_get_data(BME68X_FORCED_MODE, &data[0], &n_fields, &t_dev);
                     if (rslt == BME68X_OK)
                     {
@@ -802,7 +802,7 @@ int8_t bme68x_selftest_check(const struct bme68x_dev *dev)
                     if (rslt == BME68X_OK)
                     {
                         /* Wait for the measurement to complete */
-                        t_dev.delay_us(BME68X_HEATR_DUR2_DELAY, t_dev.intf_ptr);
+                        t_dev.delay_ms(BME68X_HEATR_DUR2_DELAY, t_dev.intf_ptr);
                         rslt = bme68x_get_data(BME68X_FORCED_MODE, &data[i], &n_fields, &t_dev);
                     }
                 }
@@ -1268,7 +1268,7 @@ static int8_t read_field_data(uint8_t index, struct bme68x_data *data, struct bm
 
         if (rslt == BME68X_OK)
         {
-            dev->delay_us(BME68X_PERIOD_POLL, dev->intf_ptr);
+            dev->delay_ms(BME68X_PERIOD_POLL, dev->intf_ptr);
         }
 
         tries--;
@@ -1453,7 +1453,7 @@ static int8_t null_ptr_check(const struct bme68x_dev *dev)
 {
     int8_t rslt = BME68X_OK;
 
-    if ((dev == NULL) || (dev->read == NULL) || (dev->write == NULL) || (dev->delay_us == NULL))
+    if ((dev == NULL) || (dev->read == NULL) || (dev->write == NULL) || (dev->delay_ms == NULL))
     {
         /* Device structure pointer is not valid */
         rslt = BME68X_E_NULL_PTR;

@@ -116,23 +116,59 @@ uint8_t nFields, iFields;
  *  
  * @return       subscription result, zero when successful
  */
+//static bsec_library_return_t bme68x_bsec_update_subscription(bsec_virtual_sensor_t sensor_list[], uint8_t n_sensors, float sample_rate)
+//{
+//    bsec_sensor_configuration_t *requested_virtual_sensors = (bsec_sensor_configuration_t *)malloc(sizeof(bsec_sensor_configuration_t)*n_sensors);
+//    bsec_sensor_configuration_t required_sensor_settings[BSEC_MAX_PHYSICAL_SENSOR];
+//    uint8_t n_required_sensor_settings = BSEC_MAX_PHYSICAL_SENSOR;
+//    
+//    bsec_library_return_t status = BSEC_OK;
+//	uint8_t i;
+//    
+//    for (i = 0; i < n_sensors; i++)
+//    {
+//        requested_virtual_sensors[i].sensor_id = sensor_list[i];
+//        requested_virtual_sensors[i].sample_rate = sample_rate;
+//    }
+//    
+//    /* Call bsec_update_subscription() to enable/disable the requested virtual sensors */
+//    status = bsec_update_subscription(requested_virtual_sensors, n_sensors, required_sensor_settings,
+//        &n_required_sensor_settings);
+//    
+//    return status;
+//}
 static bsec_library_return_t bme68x_bsec_update_subscription(bsec_virtual_sensor_t sensor_list[], uint8_t n_sensors, float sample_rate)
 {
-    bsec_sensor_configuration_t requested_virtual_sensors[n_sensors];
+    bsec_sensor_configuration_t requested_virtual_sensors[8];
+	bsec_sensor_configuration_t required_sensor_settings[BSEC_MAX_PHYSICAL_SENSOR];
+    uint8_t n_requested_virtual_sensors = 8;
     
-    bsec_sensor_configuration_t required_sensor_settings[BSEC_MAX_PHYSICAL_SENSOR];
     uint8_t n_required_sensor_settings = BSEC_MAX_PHYSICAL_SENSOR;
     
     bsec_library_return_t status = BSEC_OK;
+	(void) sensor_list;
+	(void) n_sensors;
     
-    for (uint8_t i = 0; i < n_sensors; i++)
-    {
-        requested_virtual_sensors[i].sensor_id = sensor_list[i];
-        requested_virtual_sensors[i].sample_rate = sample_rate;
-    }
+    /* note: Virtual sensors as desired to be added here */
+    requested_virtual_sensors[0].sensor_id = BSEC_OUTPUT_IAQ;
+    requested_virtual_sensors[0].sample_rate = sample_rate;
+    requested_virtual_sensors[1].sensor_id = BSEC_OUTPUT_STATIC_IAQ;
+    requested_virtual_sensors[1].sample_rate = sample_rate;
+    requested_virtual_sensors[2].sensor_id = BSEC_OUTPUT_CO2_EQUIVALENT;
+    requested_virtual_sensors[2].sample_rate = sample_rate;
+    requested_virtual_sensors[3].sensor_id = BSEC_OUTPUT_BREATH_VOC_EQUIVALENT;
+    requested_virtual_sensors[3].sample_rate = sample_rate;
+    requested_virtual_sensors[4].sensor_id = BSEC_OUTPUT_RAW_PRESSURE;
+    requested_virtual_sensors[4].sample_rate = sample_rate;
+    requested_virtual_sensors[5].sensor_id = BSEC_OUTPUT_RAW_TEMPERATURE;
+    requested_virtual_sensors[5].sample_rate = sample_rate;
+    requested_virtual_sensors[6].sensor_id = BSEC_OUTPUT_RAW_HUMIDITY;
+    requested_virtual_sensors[6].sample_rate = sample_rate;
+    requested_virtual_sensors[7].sensor_id = BSEC_OUTPUT_RAW_GAS;
+    requested_virtual_sensors[7].sample_rate = sample_rate;
     
     /* Call bsec_update_subscription() to enable/disable the requested virtual sensors */
-    status = bsec_update_subscription(requested_virtual_sensors, n_sensors, required_sensor_settings,
+    status = bsec_update_subscription(requested_virtual_sensors, n_requested_virtual_sensors, required_sensor_settings,
         &n_required_sensor_settings);
     
     return status;
@@ -187,7 +223,6 @@ return_values_init bsec_iot_init(bsec_virtual_sensor_t sensor_list[], uint8_t n_
             return ret;
         }
     }
-    // printf("%s:%d\n", __FUNCTION__, __LINE__);
     /* Load previous library state, if available */
     bsec_state_len = state_load(bsec_state, sizeof(bsec_state));
     if (bsec_state_len != 0)
@@ -198,7 +233,7 @@ return_values_init bsec_iot_init(bsec_virtual_sensor_t sensor_list[], uint8_t n_
             return ret;
         }
     }
-    // printf("%s:%d\n", __FUNCTION__, __LINE__);
+    printf("%s:%d %d\r\n", __FUNCTION__, __LINE__, sample_rate == BSEC_SAMPLE_RATE_LP);
     /* Call to the function which sets the library with subscription information */
     ret.bsec_status = bme68x_bsec_update_subscription(sensor_list, n_sensors, sample_rate);
     if (ret.bsec_status != BSEC_OK)
@@ -437,7 +472,7 @@ void setBme68xConfigParallel(bsec_bme_settings_t *sensor_settings)
 		return;
         
 
-    sharedHeaterDur = BSEC_TOTAL_HEAT_DUR - (getMeasDur(BME68X_PARALLEL_MODE) / INT64_C(1000));
+    sharedHeaterDur = BSEC_TOTAL_HEAT_DUR - (getMeasDur(BME68X_PARALLEL_MODE) / INT32_C(1000));
 	heatr_conf.enable = BME68X_ENABLE;
 	heatr_conf.heatr_temp_prof = sensor_settings->heater_temperature_profile;
 	heatr_conf.heatr_dur_prof = sensor_settings->heater_duration_profile;
@@ -550,15 +585,8 @@ void bsec_iot_loop(sleep_fct sleep, get_timestamp_us_fct get_timestamp_us, outpu
 {
     /* Timestamp variables */
     int64_t time_stamp = 0;
-    
-    /* BSEC sensor settings struct */
-    bsec_bme_settings_t sensor_settings;
-	memset(&sensor_settings, 0, sizeof(sensor_settings));
 	
-	/* BSEC sensor data */
-	struct bme68x_data data;
-    
-    /* Save state variables */
+	/* Save state variables */
     uint8_t bsec_state[BSEC_MAX_STATE_BLOB_SIZE];
     uint8_t work_buffer[BSEC_MAX_WORKBUFFER_SIZE];
 	uint8_t nFieldsLeft = 0;
@@ -566,9 +594,15 @@ void bsec_iot_loop(sleep_fct sleep, get_timestamp_us_fct get_timestamp_us, outpu
     uint32_t n_samples = 0;
 	int8_t ret_val;
 	
-    opMode = sensor_settings.op_mode;
+	/* BSEC sensor data */
+	struct bme68x_data data;
+	bsec_library_return_t bsec_status = BSEC_OK;
+    
+    /* BSEC sensor settings struct */
+    bsec_bme_settings_t sensor_settings;
+	memset(&sensor_settings, 0, sizeof(sensor_settings));
 	
-    bsec_library_return_t bsec_status = BSEC_OK;
+    opMode = sensor_settings.op_mode;
 	sensor_settings.next_call = 0;
 	
     while (1)

@@ -10,26 +10,13 @@
 extern "C" {
 #endif /*__cplusplus */
 
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 199309L
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <linux/i2c-dev.h>
-#include <i2c/smbus.h>
 #include "bme68x.h"
 
-int i2c_open(const char *file);
-void i2c_close(int fd);
-void i2c_set_addr(int fd, int addr);
+void i2c_init( void *fd, uint32_t bound, uint16_t address );
+void i2c2_init( uint32_t bound, uint16_t address );
+void i2c_close(void *fd);
 
 /*!
  *  @brief Function to select the interface between SPI and I2C.
@@ -121,7 +108,7 @@ void bme68x_delay_us(uint32_t t_us, void *intf_ptr);
  *
  * @return          system_current_time    current system timestamp in microseconds
  */
-int64_t get_timestamp_us();
+void get_timestamp_us(uint32_t *tickcount);
 
 /*!
  *  @brief Prints the execution status of the APIs.

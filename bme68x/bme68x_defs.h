@@ -94,14 +94,14 @@
 
 /* Period between two polls (value can be given by user) */
 #ifndef BME68X_PERIOD_POLL
-#define BME68X_PERIOD_POLL                        UINT32_C(10000)
+#define BME68X_PERIOD_POLL                        UINT32_C(10)
 #endif
 
 /* BME68X unique chip identifier */
 #define BME68X_CHIP_ID                            UINT8_C(0x61)
 
 /* Period for a soft reset */
-#define BME68X_PERIOD_RESET                       UINT32_C(10000)
+#define BME68X_PERIOD_RESET                       UINT32_C(10)
 
 /* BME68X lower I2C address */
 #define BME68X_I2C_ADDR_LOW                       UINT8_C(0x76)
@@ -514,8 +514,8 @@
 
 #define BME68X_HEATR_DUR1                         UINT16_C(1000)
 #define BME68X_HEATR_DUR2                         UINT16_C(2000)
-#define BME68X_HEATR_DUR1_DELAY                   UINT32_C(1000000)
-#define BME68X_HEATR_DUR2_DELAY                   UINT32_C(2000000)
+#define BME68X_HEATR_DUR1_DELAY                   UINT32_C(1000)
+#define BME68X_HEATR_DUR2_DELAY                   UINT32_C(2000)
 #define BME68X_N_MEAS                             UINT8_C(6)
 #define BME68X_LOW_TEMP                           UINT8_C(150)
 #define BME68X_HIGH_TEMP                          UINT16_C(350)
@@ -687,7 +687,7 @@ typedef BME68X_INTF_RET_TYPE (*bme68x_write_fptr_t)(uint8_t reg_addr, const uint
  * @param[in,out] intf_ptr : Void pointer that can enable the linking of descriptors
  *                           for interface related callbacks
  */
-typedef void (*bme68x_delay_us_fptr_t)(uint32_t period, void *intf_ptr);
+typedef void (*bme68x_delay_ms_fptr_t)(uint32_t period, void *intf_ptr);
 
 /*
  * @brief Generic communication function pointer
@@ -964,7 +964,7 @@ struct bme68x_dev
     bme68x_write_fptr_t write;
 
     /*! Delay function pointer */
-    bme68x_delay_us_fptr_t delay_us;
+    bme68x_delay_ms_fptr_t delay_ms;
 
     /*! To store interface pointer error */
     BME68X_INTF_RET_TYPE intf_rslt;
